@@ -14,8 +14,8 @@ from nose.tools import eq_
 from nose import SkipTest
 
 from . import signals
-from test_utils.fixture_tables import tables_used_by_fixtures
-from test_utils.runner import uses_mysql
+from krux_test_utils.fixture_tables import tables_used_by_fixtures
+from krux_test_utils.runner import uses_mysql
 
 
 VERSION = (0, 3)
