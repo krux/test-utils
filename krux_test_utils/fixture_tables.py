@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core import serializers
 from django.db import router, DEFAULT_DB_ALIAS
 from django.db.models import get_apps
-from django.utils.itercompat import product
+from itertools import product
 
 try:
     import bz2
