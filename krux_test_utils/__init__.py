@@ -1,7 +1,6 @@
 from django import test
 from django.conf import settings
 from django.core import cache, management, mail
-from django.core.handlers import wsgi
 from django.core.management import call_command
 from django.db import connection, connections, DEFAULT_DB_ALIAS, transaction
 from django.db.models import loading
@@ -16,6 +15,12 @@ from nose import SkipTest
 from . import signals
 from krux_test_utils.fixture_tables import tables_used_by_fixtures
 from krux_test_utils.runner import uses_mysql
+
+HAS_JINJA2 = True
+try:
+    import jinja2
+except ImportError:
+    HAS_JINJA2 = False
 
 
 VERSION = (0, 3)
@@ -33,17 +38,16 @@ def setup_test_environment():
         return
     IS_SETUP = True
 
-    # Import here so it's not required to install test-utils.
-    import jinja2
-    old_render = jinja2.Template.render
+    if HAS_JINJA2:
+        old_render = jinja2.Template.render
 
-    def instrumented_render(self, *args, **kwargs):
-        context = dict(*args, **kwargs)
-        test.signals.template_rendered.send(sender=self, template=self,
-                                            context=context)
-        return old_render(self, *args, **kwargs)
+        def instrumented_render(self, *args, **kwargs):
+            context = dict(*args, **kwargs)
+            test.signals.template_rendered.send(sender=self, template=self,
+                                                context=context)
+            return old_render(self, *args, **kwargs)
 
-    jinja2.Template.render = instrumented_render
+        jinja2.Template.render = instrumented_render
 
     try:
         from celery.app import current_app
@@ -168,7 +172,7 @@ class FastFixtureTestCase(test.TransactionTestCase):
     def _fixture_setup(cls):
         """Load fixture data, and commit."""
         for db in cls._databases():
-            if (hasattr(cls, 'fixtures') and
+            if (hasattr(cls, 'fixtures') and cls.fixtures and
                 getattr(cls, '_fb_should_setup_fixtures', True)):
                 # Iff the fixture-bundling test runner tells us we're the first
                 # suite having these fixtures, set them up:
@@ -182,7 +186,7 @@ class FastFixtureTestCase(test.TransactionTestCase):
     @classmethod
     def _fixture_teardown(cls):
         """Empty (only) the tables we loaded fixtures into, then commit."""
-        if hasattr(cls, 'fixtures') and \
+        if hasattr(cls, 'fixtures') and cls.fixtures and\
            getattr(cls, '_fb_should_teardown_fixtures', True):
             # If the fixture-bundling test runner advises us that the next test
             # suite is going to reuse these fixtures, don't tear them down.
@@ -225,7 +229,7 @@ class FastFixtureTestCase(test.TransactionTestCase):
 
         test.testcases.disable_transaction_methods()
 
-        #self._fixture_setup()
+        self.client = self.client_class()
         self._urlconf_setup()
         mail.outbox = []
 
@@ -320,8 +324,17 @@ class ExtraAppTestCase(FastFixtureTestCase):
         for app_label in cls.extra_apps:
             app_name = app_label.split('.')[-1]
             app = loading.cache.get_app(app_name)
-            del loading.cache.app_models[app_name]
-            del loading.cache.app_store[app]
+            try:
+                # Django <= 1.6.
+                del loading.cache.app_models[app_name]
+            except AttributeError:
+                # Django 1.7+.
+                del loading.cache.all_models[app_name]
+            try:
+                # Django <= 1.6.
+                del loading.cache.app_store[app]
+            except AttributeError:
+                pass
 
         apps = set(settings.INSTALLED_APPS).difference(cls.extra_apps)
         settings.INSTALLED_APPS = tuple(apps)
