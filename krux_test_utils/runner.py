@@ -47,10 +47,20 @@ class SkipDatabaseCreation(mysql.DatabaseCreation):
     (depending on your I/O luck) down to 3.
 
     """
-    def create_test_db(self, verbosity=1, autoclobber=False):
+    def create_test_db(self, verbosity=1, autoclobber=False, **kwargs):
         # Notice that the DB supports transactions. Originally, this was done
-        # in the method this overrides.
-        self.connection.features.confirm()
+        # in the method this overrides. The confirm method was added in Django
+        # v1.3 (https://code.djangoproject.com/ticket/12991) but removed in
+        # Django v1.5 (https://code.djangoproject.com/ticket/17760). In Django
+        # v1.5 supports_transactions is a cached property evaluated on access.
+        if callable(getattr(self.connection.features, 'confirm', None)):
+            # Django v1.3-4
+            self.connection.features.confirm()
+        elif hasattr(self, "_rollback_works"):
+            # Django v1.2 and lower
+            rollback = self._rollback_works()
+            self.connection.settings_dict['SUPPORTS_TRANSACTIONS'] = rollback
+
         return self._get_test_db_name()
 
 
@@ -84,7 +94,8 @@ class RadicalTestSuiteRunner(django_nose.NoseTestSuiteRunner):
             except StandardError:  # TODO: Be more discerning but still DB
                                    # agnostic.
                 return True
-            return not not os.getenv('FORCE_DB')
+            return (os.getenv('FORCE_DB', 'false').lower()
+                    not in ('false', '0', ''))
 
         def sql_reset_sequences(connection):
             """Return a list of SQL statements needed to reset all sequences
@@ -144,3 +155,15 @@ class RadicalTestSuiteRunner(django_nose.NoseTestSuiteRunner):
         except ImportError:
             pass
         super(RadicalTestSuiteRunner, self).setup_test_environment(**kwargs)
+
+
+class NoDBTestSuiterunner(django_nose.NoseTestSuiteRunner):
+    """A test suite runner that does not set up and tear down a database."""
+
+    def setup_databases(self):
+        """I don't want databases"""
+        pass
+
+    def teardown_databases(self, *args):
+        """Let's teardown inexistant databases"""
+        pass
