@@ -2,8 +2,8 @@ from setuptools import setup
 
 
 setup(
-    name='test-utils',
-    version='0.3',
+    name='krux-test-utils',
+    version='0.3.1',
     description='Grab bag of test utilities for Django & Jinja2 & Selenium.',
     long_description=open('README.rst').read(),
     author='Jeff Balogh',
