@@ -3,7 +3,7 @@ from django.conf import settings
 from django.core import cache, management, mail
 from django.core.management import call_command
 from django.db import connection, connections, DEFAULT_DB_ALIAS, transaction
-from django.db.models import loading
+from django.apps import apps as cache
 from django.test.client import RequestFactory as DjangoRequestFactory
 from django.utils.encoding import smart_unicode as unicode
 from django.utils.translation import trans_real
@@ -173,7 +173,7 @@ class FastFixtureTestCase(test.TransactionTestCase):
         """Load fixture data, and commit."""
         for db in cls._databases():
             if (hasattr(cls, 'fixtures') and cls.fixtures and
-                getattr(cls, '_fb_should_setup_fixtures', True)):
+                    getattr(cls, '_fb_should_setup_fixtures', True)):
                 # Iff the fixture-bundling test runner tells us we're the first
                 # suite having these fixtures, set them up:
                 call_command('loaddata', *cls.fixtures, **{'verbosity': 0,
@@ -186,8 +186,8 @@ class FastFixtureTestCase(test.TransactionTestCase):
     @classmethod
     def _fixture_teardown(cls):
         """Empty (only) the tables we loaded fixtures into, then commit."""
-        if hasattr(cls, 'fixtures') and cls.fixtures and\
-           getattr(cls, '_fb_should_teardown_fixtures', True):
+        if hasattr(cls, 'fixtures') and cls.fixtures and \
+                getattr(cls, '_fb_should_teardown_fixtures', True):
             # If the fixture-bundling test runner advises us that the next test
             # suite is going to reuse these fixtures, don't tear them down.
             for db in cls._databases():
@@ -314,7 +314,7 @@ class ExtraAppTestCase(FastFixtureTestCase):
     def setUpClass(cls):
         for app in cls.extra_apps:
             settings.INSTALLED_APPS += (app,)
-            loading.load_app(app)
+            apps.load_app(app)
         management.call_command('syncdb', verbosity=0, interactive=False)
         super(ExtraAppTestCase, cls).setUpClass()
 
@@ -323,16 +323,16 @@ class ExtraAppTestCase(FastFixtureTestCase):
         # Remove the apps from extra_apps.
         for app_label in cls.extra_apps:
             app_name = app_label.split('.')[-1]
-            app = loading.cache.get_app(app_name)
+            app = cache.get_app(app_name)
             try:
                 # Django <= 1.6.
-                del loading.cache.app_models[app_name]
+                del cache.app_models[app_name]
             except AttributeError:
                 # Django 1.7+.
-                del loading.cache.all_models[app_name]
+                del cache.all_models[app_name]
             try:
                 # Django <= 1.6.
-                del loading.cache.app_store[app]
+                del cache.app_store[app]
             except AttributeError:
                 pass
 
