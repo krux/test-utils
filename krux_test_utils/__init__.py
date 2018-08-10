@@ -3,7 +3,7 @@ from django.conf import settings
 from django.core import cache, management, mail
 from django.core.management import call_command
 from django.db import connection, connections, DEFAULT_DB_ALIAS, transaction
-from django.apps import apps as cache
+from django.apps import apps
 from django.test.client import RequestFactory as DjangoRequestFactory
 from django.utils.encoding import smart_unicode as unicode
 from django.utils.translation import trans_real
