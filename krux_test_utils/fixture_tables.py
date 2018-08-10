@@ -8,7 +8,7 @@ import zipfile
 from django.conf import settings
 from django.core import serializers
 from django.db import DEFAULT_DB_ALIAS, router
-from django.db.models import get_apps
+from django.apps import apps
 
 # Remove this try/except block if the minimum Python version suported is 2.6
 # as `product` was added in Python 2.6.
@@ -52,7 +52,7 @@ def tables_used_by_fixtures(fixture_labels, using=DEFAULT_DB_ALIAS):
         compression_types['bz2'] = bz2.BZ2File
 
     app_module_paths = []
-    for app in get_apps():
+    for app in apps.get_apps():
         if hasattr(app, '__path__'):
             # It's a 'models/' subpackage
             for path in app.__path__:
